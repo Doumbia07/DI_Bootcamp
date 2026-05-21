@@ -18,24 +18,24 @@ for name, age in family.items():
 print("Total cost:", total, "$")
 
 # Bonus Exercice 2 (saisie utilisateur)
-family = {}
-while True:
-    name = input("Enter family member name (or 'quit'): ")
-    if name == "quit":
-        break
-    age = int(input("Enter age: "))
-    family[name] = age
-total = 0
-for name, age in family.items():
-    if age < 3:
-        price = 0
-    elif age <= 12:
-        price = 10
-    else:
-        price = 15
-    print(name, ":", price, "$")
-    total += price
-print("Total cost:", total, "$")
+# family = {}
+# while True:
+#     name = input("Enter family member name (or 'quit'): ")
+#     if name == "quit":
+#         break
+#     age = int(input("Enter age: "))
+#     family[name] = age
+# total = 0
+# for name, age in family.items():
+#     if age < 3:
+#         price = 0
+#     elif age <= 12:
+#         price = 10
+#     else:
+#         price = 15
+#     print(name, ":", price, "$")
+#     total += price
+# print("Total cost:", total, "$")
 
 # Exercice 3
 brand = {
@@ -47,6 +47,7 @@ brand = {
     "number_stores": 7000,
     "major_color": {"France": ["blue"], "Spain": ["red"], "US": ["pink", "green"]},
 }
+
 brand["number_stores"] = 2
 print("Zara sells clothes for", brand["type_of_clothes"])
 brand["country_creation"] = "Spain"

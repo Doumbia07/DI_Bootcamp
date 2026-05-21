@@ -12,7 +12,7 @@ for i, lettre in enumerate(mot):
 
 print(dico)
 
-print("\n" + "=" * 50 + "\n")
+# print("\n" + "=" * 50 + "\n")
 
 # CHALLENGE 2 : Articles abordables
 
