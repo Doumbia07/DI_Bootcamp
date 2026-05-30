@@ -1,245 +1,238 @@
 """
-Mini-projet : Analyse marketing - US Superstore Dataset
+Mini-projet : Analyse marketing - US Superstore
+Version simplifiée, lisible, tout en français, avec fonctions.
 """
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import warnings
-
-warnings.filterwarnings("ignore")
 
 
-# 1. Chargement et nettoyage
-
-df = pd.read_excel(
-    r"C:\Users\LEIDAS\Desktop\DI_Bootcamp\Week2\day5\US Superstore data.xls",
-    sheet_name="Orders",
-)
-df["Order Date"] = pd.to_datetime(df["Order Date"])
-df["Ship Date"] = pd.to_datetime(df["Ship Date"])
-df.drop_duplicates(inplace=True)
+# 1. Chargement des données (chemin relatif)
+def charger_donnees():
+    df = pd.read_excel("US Superstore data.xls", sheet_name="Orders")
+    df["Order Date"] = pd.to_datetime(df["Order Date"])
+    df["Ship Date"] = pd.to_datetime(df["Ship Date"])
+    df.drop_duplicates(inplace=True)
+    return df
 
 
 # 2. Top États par ventes
-
-state_sales = df.groupby("State")["Sales"].sum().sort_values(ascending=False).head(10)
-
-plt.figure(figsize=(10, 6))
-sns.barplot(x=state_sales.values, y=state_sales.index, palette="Blues_r")
-plt.title("Top 10 États par ventes totales")
-plt.xlabel("Ventes ($)")
-plt.ylabel("État")
-plt.tight_layout()
-plt.show()
-
-print("Top 10 États par ventes :")
-print(state_sales.round(0).astype(int))
-print()
+def top_etats_ventes(df, n=10):
+    top = df.groupby("State")["Sales"].sum().nlargest(n)
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x=top.values, y=top.index, palette="Blues_r")
+    plt.title(f"Top {n} États par ventes")
+    plt.xlabel("Ventes ($)")
+    plt.ylabel("État")
+    plt.tight_layout()
+    plt.show()
+    print("Top États (ventes) :\n", top.round(0).astype(int), "\n")
+    return top
 
 
-# 3. Comparaison NY vs Californie
+# 3. Comparaison New York / Californie
+def comparer_ny_ca(df):
+    ny = df[df["State"] == "New York"]
+    ca = df[df["State"] == "California"]
+    ventes = [ny["Sales"].sum(), ca["Sales"].sum()]
+    profits = [ny["Profit"].sum(), ca["Profit"].sum()]
+    comp = pd.DataFrame(
+        {"État": ["New York", "Californie"], "Ventes": ventes, "Profit": profits}
+    )
+    comp[["Ventes", "Profit"]] = comp[["Ventes", "Profit"]].round(0).astype(int)
+    print("Comparaison NY / Californie :\n", comp, "\n")
 
-ny_sales = df[df["State"] == "New York"]["Sales"].sum()
-ca_sales = df[df["State"] == "California"]["Sales"].sum()
-ny_profit = df[df["State"] == "New York"]["Profit"].sum()
-ca_profit = df[df["State"] == "California"]["Profit"].sum()
-
-comp = pd.DataFrame(
-    {
-        "State": ["New York", "California"],
-        "Sales": [ny_sales, ca_sales],
-        "Profit": [ny_profit, ca_profit],
-    }
-)
-comp[["Sales", "Profit"]] = comp[["Sales", "Profit"]].round(0).astype(int)
-print("Comparaison New York vs Californie :")
-print(comp)
-
-comp_melt = comp.melt(id_vars="State", var_name="Metric", value_name="Amount")
-plt.figure(figsize=(8, 5))
-sns.barplot(data=comp_melt, x="State", y="Amount", hue="Metric", palette="Set2")
-plt.title("Comparaison NY / CA : Ventes et Profit")
-plt.ylabel("Montant ($)")
-plt.tight_layout()
-plt.show()
+    # Graphique
+    fond = comp.melt(id_vars="État", var_name="Métrique", value_name="Montant")
+    plt.figure(figsize=(8, 5))
+    sns.barplot(data=fond, x="État", y="Montant", hue="Métrique", palette="Set2")
+    plt.title("Ventes et profit : NY vs Californie")
+    plt.ylabel("Montant ($)")
+    plt.tight_layout()
+    plt.show()
 
 
-# 4. Client exceptionnel à New York
-
-ny_top = (
-    df[df["State"] == "New York"]
-    .groupby(["Customer ID", "Customer Name"])["Sales"]
-    .sum()
-    .nlargest(1)
-    .reset_index()
-)
-cust_name = ny_top.iloc[0]["Customer Name"]
-cust_sales = int(round(ny_top.iloc[0]["Sales"]))
-print(f"Client avec le plus de ventes à New York : {cust_name} : ${cust_sales:,}\n")
-
-
-# 5. Marge bénéficiaire par État
+# 4. Client le plus vendeur à New York
+def client_top_ny(df):
+    top = (
+        df[df["State"] == "New York"]
+        .groupby(["Customer ID", "Customer Name"])["Sales"]
+        .sum()
+        .nlargest(1)
+        .reset_index()
+    )
+    nom = top.iloc[0]["Customer Name"]
+    ventes = int(round(top.iloc[0]["Sales"]))
+    print(f"Client NY le plus vendeur : {nom} - ${ventes:,}\n")
 
 
-def margin(x):
-    return x["Profit"].sum() / x["Sales"].sum() * 100
+# 5. Marge bénéficiaire par État (Top 10)
+def marge_par_etat(df, n=10):
+    def marge(g):
+        return g["Profit"].sum() / g["Sales"].sum() * 100
+
+    top = df.groupby("State").apply(marge).nlargest(n).reset_index()
+    top.columns = ["État", "Marge (%)"]
+    plt.figure(figsize=(10, 6))
+    sns.barplot(data=top, x="Marge (%)", y="État", palette="RdYlGn")
+    plt.title(f"Top {n} États par marge bénéficiaire (%)")
+    plt.tight_layout()
+    plt.show()
+    print("Top marges par État :\n", top.round(1), "\n")
+    return top
 
 
-state_margin = (
-    df.groupby("State")
-    .apply(margin)
-    .sort_values(ascending=False)
-    .head(10)
-    .reset_index()
-)
-state_margin.columns = ["State", "Margin (%)"]
+# 6. Pareto (80/20) sur le profit client
+def pareto_profit(df):
+    profit_client = (
+        df.groupby("Customer ID")["Profit"].sum().sort_values(ascending=False)
+    )
+    cumul = profit_client.cumsum() / profit_client.sum() * 100
+    pct_clients = np.arange(1, len(profit_client) + 1) / len(profit_client) * 100
+    seuil = np.argmax(cumul >= 80)
+    pct_necessaire = pct_clients[seuil]
 
-plt.figure(figsize=(10, 6))
-sns.barplot(data=state_margin, x="Margin (%)", y="State", palette="RdYlGn")
-plt.title("Top 10 États par marge bénéficiaire (%)")
-plt.tight_layout()
-plt.show()
-
-print("Top 10 États par marge bénéficiaire (%) :")
-print(state_margin.round(1))
-print()
-
-
-# 6. Pareto : profit par client
-
-cust_profit = df.groupby("Customer ID")["Profit"].sum().sort_values(ascending=False)
-total_profit = cust_profit.sum()
-cumsum_profit = cust_profit.cumsum()
-pct_customers = np.arange(1, len(cust_profit) + 1) / len(cust_profit) * 100
-pct_profit = cumsum_profit / total_profit * 100
-idx_80 = np.argmax(pct_profit >= 80)
-clients_needed = pct_customers[idx_80]
-
-plt.figure(figsize=(8, 6))
-plt.plot(pct_customers, pct_profit, "b-", linewidth=2)
-plt.axhline(y=80, color="r", linestyle="--", label="80% du profit")
-plt.axvline(x=20, color="g", linestyle="--", label="20% des clients")
-plt.fill_between(
-    pct_customers, pct_profit, 80, where=(pct_profit <= 80), color="yellow", alpha=0.3
-)
-plt.title("Courbe cumulative du profit par client")
-plt.xlabel("Pourcentage de clients")
-plt.ylabel("Pourcentage du profit")
-plt.legend()
-plt.grid(alpha=0.3)
-plt.tight_layout()
-plt.show()
-
-print(f"Pour atteindre 80% du profit, il faut {clients_needed:.1f}% des clients.")
-print()
+    plt.figure(figsize=(8, 6))
+    plt.plot(pct_clients, cumul, "b-", linewidth=2)
+    plt.axhline(80, color="r", linestyle="--", label="80% du profit")
+    plt.axvline(20, color="g", linestyle="--", label="20% des clients")
+    plt.fill_between(
+        pct_clients, cumul, 80, where=(cumul <= 80), color="yellow", alpha=0.3
+    )
+    plt.title("Courbe de Pareto : profit par client")
+    plt.xlabel("Pourcentage de clients")
+    plt.ylabel("Pourcentage du profit")
+    plt.legend()
+    plt.grid(alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+    print(f"Pour 80% du profit, il faut {pct_necessaire:.1f}% des clients.\n")
+    return pct_necessaire
 
 
-# 7. Top 20 villes par ventes et profit
+# 7. Top 20 villes (ventes, profit, marges)
+def top_villes(df):
+    ventes = df.groupby("City")["Sales"].sum().nlargest(20)
+    profits = df.groupby("City")["Profit"].sum().nlargest(20)
+    print("Top 20 villes par ventes :\n", ventes.round(0).astype(int), "\n")
+    print("Top 20 villes par profit :\n", profits.round(0).astype(int), "\n")
 
-city_sales = df.groupby("City")["Sales"].sum().nlargest(20)
-city_profit = df.groupby("City")["Profit"].sum().nlargest(20)
+    # Marges sur l'ensemble des villes des deux tops
+    villes_union = set(ventes.index) | set(profits.index)
 
-print("Top 20 villes par ventes :")
-print(city_sales.round(0).astype(int))
-print("\nTop 20 villes par profit :")
-print(city_profit.round(0).astype(int))
+    def marge(g):
+        return g["Profit"].sum() / g["Sales"].sum() * 100
 
-top_cities = set(city_sales.index).union(set(city_profit.index))
-city_margins = (
-    df[df["City"].isin(top_cities)]
-    .groupby("City")
-    .apply(margin)
-    .sort_values(ascending=False)
-    .head(10)
-    .reset_index()
-)
-city_margins.columns = ["City", "Margin (%)"]
-print("\nVilles avec les meilleures marges (parmi top 20 ventes/profit) :")
-print(city_margins.round(1))
+    marges = (
+        df[df["City"].isin(villes_union)]
+        .groupby("City")
+        .apply(marge)
+        .nlargest(10)
+        .reset_index()
+    )
+    marges.columns = ["Ville", "Marge (%)"]
+    print("Top 10 marges parmi ces villes :\n", marges.round(1), "\n")
 
-fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-city_sales.head(10).sort_values().plot(kind="barh", ax=axes[0], color="steelblue")
-axes[0].set_title("Top 10 villes par ventes")
-axes[0].set_xlabel("Ventes ($)")
-city_profit.head(10).sort_values().plot(kind="barh", ax=axes[1], color="darkgreen")
-axes[1].set_title("Top 10 villes par profit")
-axes[1].set_xlabel("Profit ($)")
-plt.tight_layout()
-plt.show()
-
-
-# 8. Top 20 clients par ventes
-
-top_cust = (
-    df.groupby(["Customer ID", "Customer Name"])["Sales"]
-    .sum()
-    .nlargest(20)
-    .reset_index()
-)
-top10_cust = top_cust.head(10).copy()
-top10_cust["Sales"] = top10_cust["Sales"].round(0).astype(int)
-print("\nTop 10 clients par ventes :")
-print(top10_cust[["Customer Name", "Sales"]])
-
-plt.figure(figsize=(10, 6))
-sns.barplot(data=top10_cust, y="Customer Name", x="Sales", palette="viridis")
-plt.title("Top 10 clients par ventes")
-plt.xlabel("Ventes ($)")
-plt.tight_layout()
-plt.show()
+    # Graphique comparatif top 10
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    ventes.head(10).sort_values().plot(kind="barh", ax=ax1, color="steelblue")
+    ax1.set_title("Top 10 villes par ventes")
+    ax1.set_xlabel("Ventes ($)")
+    profits.head(10).sort_values().plot(kind="barh", ax=ax2, color="darkgreen")
+    ax2.set_title("Top 10 villes par profit")
+    ax2.set_xlabel("Profit ($)")
+    plt.tight_layout()
+    plt.show()
+    return ventes, profits, marges
 
 
-# 9. Pareto : ventes par client
-
-cust_sales = df.groupby("Customer ID")["Sales"].sum().sort_values(ascending=False)
-total_sales = cust_sales.sum()
-cumsum_sales = cust_sales.cumsum()
-pct_cust = np.arange(1, len(cust_sales) + 1) / len(cust_sales) * 100
-pct_sales = cumsum_sales / total_sales * 100
-idx_80_sales = np.argmax(pct_sales >= 80)
-clients_needed_sales = pct_cust[idx_80_sales]
-
-plt.figure(figsize=(8, 6))
-plt.plot(pct_cust, pct_sales, "b-", linewidth=2)
-plt.axhline(y=80, color="r", linestyle="--", label="80% des ventes")
-plt.axvline(x=20, color="g", linestyle="--", label="20% des clients")
-plt.title("Courbe cumulative des ventes par client")
-plt.xlabel("Pourcentage de clients")
-plt.ylabel("Pourcentage des ventes")
-plt.legend()
-plt.grid(alpha=0.3)
-plt.tight_layout()
-plt.show()
-print(f"\nPour 80% des ventes, il faut {clients_needed_sales:.1f}% des clients.")
+# 8. Top 10 clients par ventes
+def top_clients_ventes(df, n=10):
+    top = (
+        df.groupby(["Customer ID", "Customer Name"])["Sales"]
+        .sum()
+        .nlargest(n)
+        .reset_index()
+    )
+    top["Sales"] = top["Sales"].round(0).astype(int)
+    print(f"Top {n} clients par ventes :\n", top[["Customer Name", "Sales"]], "\n")
+    plt.figure(figsize=(10, 6))
+    sns.barplot(data=top, y="Customer Name", x="Sales", palette="viridis")
+    plt.title(f"Top {n} clients par ventes")
+    plt.xlabel("Ventes ($)")
+    plt.tight_layout()
+    plt.show()
 
 
-# 10. Recommandations
+# 9. Pareto (80/20) sur les ventes client
+def pareto_ventes(df):
+    ventes_client = (
+        df.groupby("Customer ID")["Sales"].sum().sort_values(ascending=False)
+    )
+    cumul = ventes_client.cumsum() / ventes_client.sum() * 100
+    pct_clients = np.arange(1, len(ventes_client) + 1) / len(ventes_client) * 100
+    seuil = np.argmax(cumul >= 80)
+    pct_necessaire = pct_clients[seuil]
+    plt.figure(figsize=(8, 6))
+    plt.plot(pct_clients, cumul, "b-", linewidth=2)
+    plt.axhline(80, color="r", linestyle="--", label="80% des ventes")
+    plt.axvline(20, color="g", linestyle="--", label="20% des clients")
+    plt.title("Courbe de Pareto : ventes par client")
+    plt.xlabel("Pourcentage de clients")
+    plt.ylabel("Pourcentage des ventes")
+    plt.legend()
+    plt.grid(alpha=0.3)
+    plt.tight_layout()
+    plt.show()
+    print(f"Pour 80% des ventes, il faut {pct_necessaire:.1f}% des clients.\n")
+    return pct_necessaire
 
-top_states = state_sales.head(3).index.tolist()
-top_margin_states = state_margin.head(3)["State"].tolist()
-top_sales_cities = city_sales.head(5).index.tolist()
-top_profit_cities = city_profit.head(5).index.tolist()
 
-print("\n" + "=" * 60)
-print("RECOMMANDATIONS MARKETING")
-print("=" * 60)
-print(f"""
+# 10. Recommandations finales
+def recommandations(
+    state_sales, state_margin, city_sales, city_profit, pct_clients_profit
+):
+    top_states = state_sales.head(3).index.tolist()
+    top_margin_states = state_margin.head(3)["État"].tolist()
+    top_sales_cities = city_sales.head(5).index.tolist()
+    top_profit_cities = city_profit.head(5).index.tolist()
+    print("\n" + "=" * 60)
+    print("RECOMMANDATIONS MARKETING")
+    print("=" * 60)
+    print(f"""
  PRIORITÉS GÉOGRAPHIQUES :
-- États à fort volume de ventes : {', '.join(top_states)}
-- États avec les meilleures marges : {', '.join(top_margin_states)}
-- Villes clés pour les ventes : {', '.join(top_sales_cities)}
-- Villes clés pour le profit : {', '.join(top_profit_cities)}
+- États à fort volume : {', '.join(top_states)}
+- États à meilleure marge : {', '.join(top_margin_states)}
+- Villes clés ventes : {', '.join(top_sales_cities)}
+- Villes clés profit : {', '.join(top_profit_cities)}
 
  CLIENTS :
-- {clients_needed:.0f}% des clients génèrent 80% du profit → concentrer les efforts sur ces clients.
-- Mettre en place un programme de fidélisation pour les top 10 clients identifiés.
+- {pct_clients_profit:.0f}% des clients génèrent 80% du profit → concentrer les efforts.
+- Programme de fidélisation pour les top 10 clients identifiés.
 
- ACTIONS RECOMMANDÉES :
-1. Allouer davantage de budget marketing aux États de {', '.join(top_states)}.
-2. Étudier les pratiques des villes à forte marge (ex: {top_profit_cities[0] if top_profit_cities else 'non listée'}) pour les reproduire ailleurs.
-3. Réduire les remises excessives dans les zones à faible profit.
-4. Appliquer la règle de Pareto pour prioriser les actions commerciales.
-""")
-print("Analyse terminée.")
+ ACTIONS :
+1. Augmenter le budget marketing dans {', '.join(top_states)}.
+2. Étudier et dupliquer les bonnes pratiques des villes à forte marge.
+3. Réduire les remises trop élevées dans les zones peu rentables.
+4. Utiliser la règle de Pareto pour prioriser les actions commerciales.
+    """)
+
+
+# Programme principal
+if __name__ == "__main__":
+    df = charger_donnees()
+    print("Données chargées :", df.shape, "\n")
+
+    state_sales = top_etats_ventes(df)
+    comparer_ny_ca(df)
+    client_top_ny(df)
+    state_margin = marge_par_etat(df)
+    pct_clients_profit = pareto_profit(df)
+    city_sales, city_profit, _ = top_villes(df)
+    top_clients_ventes(df)
+    pareto_ventes(df)
+    recommandations(
+        state_sales, state_margin, city_sales, city_profit, pct_clients_profit
+    )
