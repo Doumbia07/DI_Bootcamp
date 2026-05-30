@@ -13,7 +13,10 @@ warnings.filterwarnings("ignore")
 
 # 1. Chargement et nettoyage
 
-df = pd.read_excel("US Superstore data.xls", sheet_name="Orders")
+df = pd.read_excel(
+    r"C:\Users\LEIDAS\Desktop\DI_Bootcamp\Week2\day5\US Superstore data.xls",
+    sheet_name="Orders",
+)
 df["Order Date"] = pd.to_datetime(df["Order Date"])
 df["Ship Date"] = pd.to_datetime(df["Ship Date"])
 df.drop_duplicates(inplace=True)
